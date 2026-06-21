@@ -1,0 +1,5 @@
+# Normalize line endings to LF for everyone (prevents CRLF drift on Windows/WSL).
+* text=auto eol=lf
+
+# Shell scripts must stay LF; mark executable bit is tracked by git mode.
+*.sh text eol=lf
