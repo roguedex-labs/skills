@@ -105,16 +105,21 @@ Never use raw output just to "make HTML work":
 | PHP array/object into inline `<script>`                                               | `{{ \Illuminate\Support\Js::from($data) }}`                             | `{!! json_encode($data) !!}`                     |
 | PHP array/object into an HTML attribute (`x-data`, `data-config`)                     | `x-data='@json($data)'` — note the single-quoted attribute wrapper      | `x-data="@json($data)"`                          |
 | Unavoidable inline JS string fragment                                                 | `'{!! esc_js($text) !!}'` inside single-quoted JS, after context review | `{{ esc_js($text) }}` or using it for JSON       |
-| Inline CSS custom props you control                                                   | `{{ }}` for scalar values; otherwise `{!! esc_attr(...) !!}`            | `{{ esc_attr(...) }}`                            |
+| Inline CSS custom props                                                              | `{{ }}` only for validated finite numbers or explicitly allowlisted CSS values | Unvalidated strings; `esc_attr()` as CSS sanitization |
+
+Validate CSS values before rendering: constrain numbers to the property's allowed
+range, or select from a fixed per-property allowlist. Keep units and declaration
+structure static. Strings are scalars too; neither Blade escaping nor
+`esc_attr()` prevents a string from injecting additional CSS declarations.
 
 ### Why `{!! esc_url() !!}` and not bare `{{ $url }}`?
 
 Blade's `{{ }}` runs `htmlspecialchars`, which blocks attribute-breakout XSS but
 does **not** sanitize the URL scheme. `esc_url()` adds protocol allowlisting
 (strips `javascript:`, `data:`, etc.). So for untrusted or filterable URLs,
-`{!! esc_url($url) !!}` gives both protections without double-encoding. For URLs
-that are 100% WP-core-generated (`get_permalink()`), bare `{{ $url }}` is _safe_
-but `{!! esc_url() !!}` is the consistent, defense-in-depth choice.
+`{!! esc_url($url) !!}` gives both protections without double-encoding.
+WordPress-generated URLs can also be filtered; use `esc_url()` consistently
+instead of assuming bare `{{ $url }}` is safe.
 
 For display URLs, the escaping function is the source of truth: **escape once in
 `esc_url()`, then emit raw with `{!! !!}`.**
@@ -187,8 +192,10 @@ tempting first draft mirrors a lot of WordPress tutorials:
 It works on the demo page, so it ships. Then a customer lands on a filtered URL
 that already carries two params — `/shop/?category[]=pumps&orderby=price`.
 `esc_url()` encodes the `&` to `&#038;`, then `{{ }}` re-encodes that `&` to
-`&amp;`, yielding `…&amp;#038;orderby=price`. The link now points at a param
-named `#038;orderby` — the sort breaks and the category filter silently drops.
+`&amp;`, yielding `…&amp;#038;orderby=price` in the HTML source. After HTML
+entity decoding, the URL contains `…&#038;orderby=price`: the `#` starts a
+fragment beginning `#038;orderby=price`. The category remains in the query,
+but sorting disappears because `orderby` is now in the fragment.
 
 **The fix — escape once in the helper, emit raw:**
 
@@ -207,9 +214,9 @@ Copy from it.
 
 ## Auditing code
 
-The skill ships a self-contained guard script. Point it at any directory of
-`.blade.php` files; it exits non-zero on a hit, so it works in a pre-commit hook
-or CI step:
+The guard requires PHP CLI and no project dependencies. Point it at any directory
+of `.blade.php` files; it exits `0` for a clean scan, `1` for findings, and `2`
+for scan errors (including unreadable files or directories):
 
 ```bash
 scripts/audit-escaping.sh [DIR]    # DIR defaults to the current directory
@@ -222,6 +229,11 @@ and WP/WC HTML stuck inside `{{ }}`. When fixing, convert display URLs to
 `{!! esc_url($x) !!}`, drop redundant `esc_attr()`/`esc_html()` wrappers inside
 `{{ }}` down to bare `{{ $x }}`, and replace JSON/JS output with the context
 rules above.
+
+It checks complete escaped echo expressions, including multiline, tab-separated,
+and nested helper calls. Blade comments, `@verbatim` blocks, and escaped
+`@{{ ... }}` echoes are excluded; HTML comments are still scanned because Blade
+executes inside them.
 
 Run it after Blade edits and keep the count at zero — treat any hit as a
 regression. For the correct form of common URL/text/HTML cases, see

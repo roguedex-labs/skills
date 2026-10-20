@@ -17,9 +17,9 @@ function e($value, $doubleEncode = true)
 
 Two facts that matter:
 
-- **`ENT_QUOTES`** — both `"` and `'` are encoded, so `{{ }}` is safe inside
-  either single- or double-quoted HTML attributes. You do **not** need
-  `esc_attr()` on top of it.
+- **`ENT_QUOTES`** — both `"` and `'` are encoded, so `{{ }}` prevents breakout
+  from single- or double-quoted HTML attributes. Plain attribute text needs no
+  `esc_attr()` wrapper; URLs, CSS, and JavaScript still need context-specific rules.
 - **`$doubleEncode = true`** (the default) — `htmlspecialchars` re-encodes the
   `&` in strings that are *already* entities. The Laravel 13 docs state this
   plainly: *"By default, Blade (and the Laravel `e` function) will double encode
@@ -85,9 +85,16 @@ This is why pattern-matching nearby Blade is unsafe and the audit script exists.
 | JSON in inline `<script>` | `{{ \Illuminate\Support\Js::from($data) }}` | Laravel escapes for script inclusion and returns a safe JS expression. |
 | JSON in an HTML attribute (`x-data`, `data-config`) | `x-data='@json($data)'` | Use single quotes around the attribute; JSON contains double quotes. |
 | Inline JS string fragment | `'{!! esc_js($text) !!}'` | Last resort only, inside single-quoted JS strings; not for JSON data. |
-| Inline `<style>` custom prop, scalar (`--w: {{ $px }}px`) | `{{ $px }}` | For untrusted non-scalar style values, sanitize before raw output. |
+| Inline CSS custom prop (`--w: {{ $px }}px`) | `{{ $px }}` with static units/structure | Accept only validated finite numbers in the property's allowed range; other CSS values require an explicit per-property allowlist. |
 
 Notes:
+
+- **CSS values need validation, not just HTML escaping.** For a pixel width,
+  validate a finite number within the permitted range before passing it to the
+  view. For other CSS values, select from a fixed per-property allowlist.
+  `is_scalar()` is insufficient: the string `0; color: red; --ignored: 0`
+  injects declarations in `style="--w: {{ $px }}px"`. Neither Blade escaping nor
+  `esc_attr()` prevents this; reject invalid values before rendering.
 
 - **`Js::from($data)`** is the Laravel-preferred form for structured data in
   `<script>` tags. Use `\Illuminate\Support\Js::from(...)` if the `Js` facade
@@ -98,11 +105,10 @@ Notes:
 - **`esc_js()`** is context-specific. WordPress documents it for inline JS string
   fragments, especially strings inside single quotes. Prefer structured JSON
   over inline event-handler code.
-- **URLs are the one place `{{ }}` is technically XSS-safe but still wrong**:
-  `htmlspecialchars` blocks attribute breakout but does **not** strip a
-  `javascript:` scheme. `esc_url()` adds that allowlist, so `{!! esc_url() !!}`
-  is the defense-in-depth choice even for WP-core-generated URLs — and it's the
-  established form across this theme.
+- **Bare `{{ $url }}` is not generally XSS-safe.** `htmlspecialchars` prevents
+  quoted-attribute breakout but preserves a `javascript:` scheme. Use
+  `{!! esc_url($url) !!}` for protocol allowlisting without double-encoding,
+  including WordPress-generated URLs that filters may change.
 - **Never** reach for `{!! !!}` around a bare variable to "fix rendering." If a
   value needs raw output it must first pass through `esc_url()` / `wp_kses_post()`
   or a documented escape-then-markup pattern.

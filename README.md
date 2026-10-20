@@ -6,7 +6,7 @@ folder under [`skills/`](skills/), so you choose which one(s) to install.
 
 ## Prerequisites
 
-- **Access to the `RogueTech-Philippines` org** — this repo is private. The CLI
+- **Access to the `roguedex-labs` org** — this repo is private. The CLI
   clones over **HTTPS** using your GitHub credentials (Git Credential Manager, or
   a `GITHUB_TOKEN`). SSH also works if your key is added to GitHub.
 - Node.js (the commands below run via `npx`, no global install needed).
@@ -17,31 +17,31 @@ folder under [`skills/`](skills/), so you choose which one(s) to install.
 ## Install a skill
 
 All commands use the HTTPS source
-`https://github.com/RogueTech-Philippines/roguedex-skills.git` (works with Git
+`https://github.com/roguedex-labs/roguedex-skills.git` (works with Git
 Credential Manager). Prefer SSH? Swap in
-`git@github.com:RogueTech-Philippines/roguedex-skills.git` once your key is on
+`git@github.com:roguedex-labs/roguedex-skills.git` once your key is on
 GitHub.
 
 **1. Browse what's in the repo (installs nothing):**
 ```bash
-npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --list
+npx skills add https://github.com/roguedex-labs/roguedex-skills.git --list
 ```
 
 **2. Install one specific skill (recommended — no prompts):**
 ```bash
-npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --skill sage-blade-escaping
+npx skills add https://github.com/roguedex-labs/roguedex-skills.git --skill sage-blade-escaping
 ```
 
 **3. Install interactively (choose from a menu):**
 ```bash
-npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git
+npx skills add https://github.com/roguedex-labs/roguedex-skills.git
 ```
 In a normal terminal you get a checklist to pick skills. Run inside an AI agent
 (e.g. Claude Code) it detects the agent and installs non-interactively.
 
 **4. Install everything in the repo:**
 ```bash
-npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --all
+npx skills add https://github.com/roguedex-labs/roguedex-skills.git --all
 ```
 
 Installed skills are written to your project's `.agents/skills/<name>/` and pinned
@@ -58,10 +58,10 @@ Real output from running these inside a project repo (cleaned up for readability
 **Browsing the repo** with `--list`:
 
 ```text
-$ npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --list
+$ npx skills add https://github.com/roguedex-labs/roguedex-skills.git --list
 
 ●  claude-code agent detected — installing non-interactively
-◇  Source: https://github.com/RogueTech-Philippines/roguedex-skills.git
+◇  Source: https://github.com/roguedex-labs/roguedex-skills.git
 ◇  Cloning repository… done
 ◇  Found 1 skill
 
@@ -80,7 +80,7 @@ $ npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --
 **Installing it** with `--skill sage-blade-escaping`:
 
 ```text
-$ npx skills add https://github.com/RogueTech-Philippines/roguedex-skills.git --skill sage-blade-escaping
+$ npx skills add https://github.com/roguedex-labs/roguedex-skills.git --skill sage-blade-escaping
 
 ◇  Repository cloned
 ◇  Installation complete
@@ -101,7 +101,10 @@ executable bit), plus a pin in `skills-lock.json`:
 .agents/skills/sage-blade-escaping/
 ├── SKILL.md
 ├── references/escaping-mechanics.md
-├── scripts/audit-escaping.sh        # -rwxr-xr-x (executable)
+├── scripts/
+│   ├── audit-escaping.sh            # executable; requires PHP CLI
+│   ├── audit-escaping.php
+│   └── test-audit-escaping.php
 └── examples/category-subcategory-cards.blade.php
 ```
 
@@ -111,7 +114,7 @@ executable bit), plus a pin in `skills-lock.json`:
   "version": 1,
   "skills": {
     "sage-blade-escaping": {
-      "source": "https://github.com/RogueTech-Philippines/roguedex-skills.git",
+      "source": "roguedex-labs/roguedex-skills",
       "sourceType": "github",
       "skillPath": "skills/sage-blade-escaping/SKILL.md",
       "computedHash": "…"
@@ -129,7 +132,7 @@ There's no separate "run" step.
 
 Preview a skill's guidance **without installing** it (one-off):
 ```bash
-npx skills use https://github.com/RogueTech-Philippines/roguedex-skills.git --skill sage-blade-escaping
+npx skills use https://github.com/roguedex-labs/roguedex-skills.git --skill sage-blade-escaping
 ```
 
 ## Manage installed skills
@@ -146,6 +149,21 @@ npx skills remove sage-blade-escaping      # remove one
 | Skill | Description |
 |---|---|
 | [`sage-blade-escaping`](skills/sage-blade-escaping/SKILL.md) | Enforce correct output escaping in Sage 11 / Acorn Blade templates and prevent double-encoding bugs. |
+
+## Verify the escaping guard
+
+Run the CLI regression checks as an unprivileged user so unreadable-file and
+unreadable-directory cases exercise real permission failures:
+
+```bash
+php skills/sage-blade-escaping/scripts/test-audit-escaping.php
+skills/sage-blade-escaping/scripts/audit-escaping.sh skills/sage-blade-escaping/examples
+```
+
+The guard uses PHP's tokenizer to find helper calls in complete escaped echoes,
+ignoring Blade comments, verbatim blocks, and escaped echoes. It fails closed on
+read, traversal, or scan errors. See the skill's audit section for exit codes and
+the limits of a clean result.
 
 ## Add a new skill
 
