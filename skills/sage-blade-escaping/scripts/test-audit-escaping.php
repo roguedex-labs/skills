@@ -41,6 +41,8 @@ try {
         'safe-output' => [<<<'BLADE'
 <a href="{!! esc_url($url) !!}" title="{{ $title }}">{{ $label }}</a>
 {!! wp_kses_post($html) !!}
+<p>{!! esc_html($text) !!}</p>
+<input title="{!! esc_attr($title) !!}" />
 BLADE, 0],
         'multiline-url' => ["<div>\n{{\n    ".'esc_url($url)' ."\n}}\n</div>", 1, 2],
         'tabbed-url' => ['{{'."\t".'esc_url'."\t".'($url) }}', 1, 1],
@@ -54,6 +56,7 @@ BLADE, 0],
         'attribute-helper' => ['{{ $label ?? esc_attr($fallback) }}', 1, 1],
         'javascript-helper' => ['{{'."\n".'esc_js($message) }}', 1, 1],
         'html-helper' => ['{{ $enabled ? $product->get_price_html() : wc_price(0) }}', 1, 1],
+        'direct-printer' => ['{{ the_content() }}', 1, 1],
         'blade-comment' => ["{{--\n".'{{ esc_url($url) }}' ."\n--}}", 0],
         'verbatim' => ["@verbatim\n".'{{ esc_url($url) }}' ."\n@endverbatim", 0],
         'escaped-echo' => ['@{{ esc_url($url) }}', 0],

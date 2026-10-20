@@ -5,10 +5,12 @@ declare(strict_types=1);
 $target = $argv[1] ?? '.';
 $found = false;
 $rules = [
-    'Display URL helper inside {{ }} (double-encodes) — use {!! esc_url(...) !!}' => ['esc_url', 'esc_url_raw'],
-    'Redundant esc_html/esc_attr inside {{ }} — drop to bare {{ $var }}' => ['esc_html', 'esc_attr'],
-    'esc_js inside {{ }} — review JS context; do not double-encode it through Blade' => ['esc_js'],
-    'WP/WC HTML inside {{ }} (prints tags as text) — use {!! ... !!}' => ['wp_kses_post', 'wc_price', 'get_price_html', 'get_the_term_list', 'the_content'],
+    'Display-escaped URL inside {{ }} — avoid default double encoding; use {!! esc_url(...) !!}' => ['esc_url'],
+    'Non-display URL API inside {{ }} — use {!! esc_url(...) !!} at HTML display sites' => ['esc_url_raw'],
+    'WordPress text/attribute helper inside {{ }} — choose one escaper; preserve intended WP semantics' => ['esc_html', 'esc_attr'],
+    'esc_js inside {{ }} — review the JS context and use matching serialization/escaping' => ['esc_js'],
+    'Returned HTML inside {{ }} — verify provenance and context before using raw output' => ['wp_kses_post', 'wc_price', 'get_price_html', 'get_the_term_list'],
+    'Direct printer inside {{ }} — use a PHP statement; echo wrappers do not sanitize printed output' => ['the_content'],
 ];
 
 set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
@@ -89,4 +91,4 @@ if ($found) {
     exit(1);
 }
 
-echo "✓ No known double-encoding anti-patterns found. Manually review any raw {!! !!} echoes.\n";
+echo "✓ No known escaping-policy patterns found. Manually review raw echoes and Htmlable producers.\n";
